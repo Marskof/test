@@ -19,6 +19,43 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
+# Vérification de Java 17 (nécessaire pour la compilation Maven de Spring Boot 2.6.4)
+check_java() {
+    if ! command -v java >/dev/null 2>&1; then return 1; fi
+    local JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '.' '{print $1}')
+    if [ "$JAVA_VERSION" = "1" ]; then
+        JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '.' '{print $2}')
+    fi
+    if [ "$JAVA_VERSION" != "17" ]; then return 1; fi
+    return 0
+}
+
+if ! check_java; then
+    echo "Java 17 n'est pas installé ou n'est pas la version par défaut."
+    echo "Tentative d'installation automatique de Java 17..."
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y openjdk-17-jdk
+            sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java 2>/dev/null || true
+            sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac 2>/dev/null || true
+        elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y java-17-openjdk-devel
+        elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y java-17-openjdk-devel
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        brew install openjdk@17
+    fi
+    
+    if ! check_java; then
+        echo >&2 "ERREUR CRITIQUE : Impossible d'installer ou de configurer Java 17 automatiquement."
+        echo >&2 "Veuillez installer Java 17 manuellement car il est strictement requis."
+        exit 1
+    else
+        echo "Java 17 a été installé et configuré avec succès."
+    fi
+fi
+
 # Donner à Vault la permission de vérifier les tokens Kubernetes
 kubectl create clusterrolebinding vault-server-binding \
     --clusterrole=system:auth-delegator \
