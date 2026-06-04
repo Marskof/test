@@ -180,14 +180,20 @@ install_if_missing() {
                     sudo yum install -y buildah
                 fi
             elif [[ "$OSTYPE" == "darwin"* ]]; then
-                brew install buildah
+                echo "ℹ️  Buildah n'est pas disponible nativement sur macOS. Docker sera utilisé comme solution de repli."
+                return 0 # On sort de la fonction sans erreur pour le Mac
             fi
         fi
         
         # Vérification post-installation
         if ! command -v $cmd >/dev/null 2>&1; then
-            echo >&2 "Échec de l'installation automatique de $cmd. Veuillez l'installer manuellement."
-            exit 1
+            if [ "$cmd" = "buildah" ] && [[ "$OSTYPE" == "darwin"* ]]; then
+                # Cas spécial déjà géré au-dessus
+                true
+            else
+                echo >&2 "Échec de l'installation automatique de $cmd. Veuillez l'installer manuellement."
+                exit 1
+            fi
         else
             echo "$cmd a été installé avec succès."
         fi
@@ -235,10 +241,20 @@ echo "Chargement des images Buildah vers Minikube..."
 SERVICES=("banque-annuaire" "banque-configserver" "banque-clientservice" "banque-compteservice" "banque-compositeservice" "banque-apigateway" "miage-bank-front")
 for TAG in "${SERVICES[@]}"; do
     echo "  -> Export et chargement de $TAG:1.0.0..."
-    # Export en archive tar depuis Buildah pour être 100% sûr du transfert
-    buildah push "$TAG:1.0.0" docker-archive:"$TAG.tar":"$TAG:1.0.0" >/dev/null 2>&1
-    minikube image load "$TAG.tar"
-    rm -f "$TAG.tar"
+    if command -v buildah >/dev/null 2>&1; then
+        # Export en archive tar depuis Buildah pour être 100% sûr du transfert
+        buildah push "$TAG:1.0.0" docker-archive:"$TAG.tar":"$TAG:1.0.0" >/dev/null 2>&1
+        minikube image load "$TAG.tar"
+        rm -f "$TAG.tar"
+    elif command -v docker >/dev/null 2>&1; then
+        # Fallback pour macOS
+        docker save "$TAG:1.0.0" -o "$TAG.tar" >/dev/null 2>&1
+        minikube image load "$TAG.tar"
+        rm -f "$TAG.tar"
+    else
+        echo >&2 "ERREUR : Impossible d'exporter l'image $TAG, ni buildah ni docker n'est installé."
+        exit 1
+    fi
 done
 
 echo "Toutes les images sont prêtes dans Minikube."

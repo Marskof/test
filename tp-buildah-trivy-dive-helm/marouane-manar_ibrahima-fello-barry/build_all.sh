@@ -40,11 +40,22 @@ cd miage-bank-back
 mvn clean package -DskipTests # compile le projet et crée un fichier .jar pour chaque micro-service
 cd ..
 
+# Choix de l'outil de build (Buildah préféré, Docker en fallback pour Mac)
+if command -v buildah >/dev/null 2>&1; then
+    BUILD_CMD="buildah bud"
+elif command -v docker >/dev/null 2>&1; then
+    echo "⚠️ Buildah non détecté (typiquement sur macOS). Utilisation de Docker en fallback pour construire les images..."
+    BUILD_CMD="docker build"
+else
+    echo >&2 "ERREUR CRITIQUE : Ni Buildah ni Docker n'est installé. Impossible de construire les images."
+    exit 1
+fi
+
 # ==========================================
 # 2. Construction du Frontend
 # ==========================================
 echo "Etape 2: Construction du Front-end (miage-bank-front)..."
-buildah bud -t miage-bank-front:${VERSION} ./miage-bank-front # buildah bud est l'équivalent de docker build
+$BUILD_CMD -t miage-bank-front:${VERSION} ./miage-bank-front
 
 # ==========================================
 # 3. Construction des micro-services (Containerfile)
@@ -63,7 +74,7 @@ for SERVICE in "${SERVICES[@]}"; do
     cd "miage-bank-back/$SERVICE"
     
     # Buildah utilise le ContainerFile et on cible le dossier du micro-service avec le bon tag
-    buildah bud -f ../../ContainerFile -t "${SERVICE,,}:${VERSION}" .
+    $BUILD_CMD -f ../../ContainerFile -t "${SERVICE,,}:${VERSION}" .
     
     cd ../..
 done
