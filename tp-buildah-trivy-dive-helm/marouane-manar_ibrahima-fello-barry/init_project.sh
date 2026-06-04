@@ -35,7 +35,8 @@ if ! check_java; then
     echo "Tentative d'installation automatique de Java 17..."
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y openjdk-17-jdk
+            sudo apt-get update 2>/dev/null || true
+            sudo apt-get install -y openjdk-17-jdk
             sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java 2>/dev/null || true
             sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac 2>/dev/null || true
         elif command -v dnf >/dev/null 2>&1; then
@@ -90,7 +91,8 @@ install_if_missing() {
         elif [ "$cmd" = "mvn" ]; then
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
                 if command -v apt-get >/dev/null 2>&1; then
-                    sudo apt-get update && sudo apt-get install -y maven
+                    sudo apt-get update 2>/dev/null || true
+                    sudo apt-get install -y maven
                 elif command -v dnf >/dev/null 2>&1; then
                     sudo dnf install -y maven
                 elif command -v yum >/dev/null 2>&1; then
@@ -102,7 +104,8 @@ install_if_missing() {
         elif [ "$cmd" = "buildah" ]; then
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
                 if command -v apt-get >/dev/null 2>&1; then
-                    sudo apt-get update && sudo apt-get install -y buildah
+                    sudo apt-get update 2>/dev/null || true
+                    sudo apt-get install -y buildah
                 elif command -v dnf >/dev/null 2>&1; then
                     sudo dnf install -y buildah
                 elif command -v yum >/dev/null 2>&1; then
