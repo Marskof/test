@@ -73,8 +73,11 @@ for SERVICE in "${SERVICES[@]}"; do
     # On se place dans le dossier du micro-service pour que la commande COPY "target/*.jar" fonctionne en local
     cd "miage-bank-back/$SERVICE"
     
+    # On convertit le nom du service en minuscules (compatible avec les anciens Bash de macOS)
+    SERVICE_LOWER=$(echo "$SERVICE" | tr '[:upper:]' '[:lower:]')
+    
     # Buildah utilise le ContainerFile et on cible le dossier du micro-service avec le bon tag
-    $BUILD_CMD -f ../../ContainerFile -t "${SERVICE,,}:${VERSION}" .
+    $BUILD_CMD -f ../../ContainerFile -t "${SERVICE_LOWER}:${VERSION}" .
     
     cd ../..
 done
