@@ -5,15 +5,15 @@
 # Il est conçu pour être sûr, idempotent (peut être relancé plusieurs fois sans casser) et optimisé pour Mac/Linux.
 
 echo "======================================================="
-echo "🚀 Démarrage de l'environnement MIAGE Bank (Evaluation)"
+echo "Démarrage de l'environnement MIAGE Bank (Évaluation)"
 echo "======================================================="
 
 # 1. Vérification et installation automatique des prérequis
-echo "🔍 Vérification des prérequis locaux..."
+echo "Vérification des prérequis locaux..."
 
 # Docker est indispensable, on ne l'installe pas automatiquement car c'est trop intrusif
 if ! command -v docker >/dev/null 2>&1; then
-    echo >&2 "❌ ERREUR CRITIQUE : Docker n'est pas installé."
+    echo >&2 "ERREUR CRITIQUE : Docker n'est pas installé."
     echo >&2 "Docker est obligatoire pour faire tourner Minikube."
     echo >&2 "Veuillez l'installer : https://docs.docker.com/get-docker/"
     exit 1
@@ -23,7 +23,7 @@ fi
 install_if_missing() {
     local cmd=$1
     if ! command -v $cmd >/dev/null 2>&1; then
-        echo "⚠️  L'outil '$cmd' n'est pas installé. Tentative d'installation automatique..."
+        echo "L'outil '$cmd' n'est pas installé. Tentative d'installation automatique..."
         
         if [ "$cmd" = "kubectl" ]; then
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -54,10 +54,10 @@ install_if_missing() {
         
         # Vérification post-installation
         if ! command -v $cmd >/dev/null 2>&1; then
-            echo >&2 "❌ Échec de l'installation automatique de $cmd. Veuillez l'installer manuellement."
+            echo >&2 "Échec de l'installation automatique de $cmd. Veuillez l'installer manuellement."
             exit 1
         else
-            echo "✅ $cmd a été installé avec succès."
+            echo "$cmd a été installé avec succès."
         fi
     fi
 }
@@ -68,12 +68,12 @@ install_if_missing "minikube"
 install_if_missing "helm"
 
 # 2. Démarrage de Minikube
-echo -e "\n📦 1. Vérification / Démarrage de Minikube..."
+echo -e "\n1. Vérification / Démarrage de Minikube..."
 if ! minikube status >/dev/null 2>&1; then
     echo "Minikube n'est pas lancé. Démarrage de Minikube avec l'addon Ingress..."
     minikube start --addons=ingress
 else
-    echo "✅ Minikube est déjà en cours d'exécution."
+    echo "Minikube est déjà en cours d'exécution."
     # S'assurer que l'ingress est activé au cas où
     minikube addons enable ingress >/dev/null 2>&1
 fi
@@ -81,23 +81,65 @@ fi
 # On s'assure que kubectl pointe bien sur minikube
 kubectl config use-context minikube >/dev/null 2>&1
 
+# 2.5 Compilation et création des images OCI (sans dépendance locale)
+echo -e "\n2. Construction des images directement dans Minikube..."
+# On pointe le client Docker local vers le daemon Docker de Minikube
+eval $(minikube docker-env)
+
+echo "Compilation Java en cours via un conteneur éphémère (cela prend quelques minutes)..."
+cat <<EOF > Dockerfile.builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY miage-bank-back/ /app/
+RUN mvn clean package -DskipTests
+EOF
+docker build -t miage-bank-builder -f Dockerfile.builder . >/dev/null
+
+echo "Construction des images des micro-services..."
+cat <<EOF > Dockerfile.service
+FROM miage-bank-builder AS builder
+ARG SERVICE_NAME
+FROM eclipse-temurin:17-jre-alpine
+ARG SERVICE_NAME
+WORKDIR /app
+COPY --from=builder /app/\${SERVICE_NAME}/target/*.jar /app/app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "/app/app.jar"]
+EOF
+
+SERVICES=("Banque-Annuaire" "Banque-ConfigServer" "Banque-ClientService" "Banque-CompteService" "Banque-CompositeService" "Banque-APIGateway")
+for SERVICE in "${SERVICES[@]}"; do
+    TAG=$(echo "$SERVICE" | tr '[:upper:]' '[:lower:]')
+    echo "  -> Construction de $TAG:1.0.0"
+    docker build --build-arg SERVICE_NAME=$SERVICE -t "$TAG:1.0.0" -f Dockerfile.service . >/dev/null
+done
+
+echo "Construction du Frontend..."
+cd miage-bank-front
+docker build -t miage-bank-front:1.0.0 -f Containerfile . >/dev/null
+cd ..
+
+# Nettoyage
+rm Dockerfile.builder Dockerfile.service
+echo "Toutes les images sont prêtes dans Minikube."
+
 # 3. Installation de Vault
-echo -e "\n🔐 2. Installation de HashiCorp Vault via Helm..."
+echo -e "\n3. Installation de HashiCorp Vault via Helm..."
 helm repo add hashicorp https://helm.releases.hashicorp.com 2>/dev/null
 helm repo update >/dev/null 2>&1
 
 if ! helm status vault -n vault >/dev/null 2>&1; then
     helm upgrade --install vault hashicorp/vault -n vault --create-namespace --set "server.dev.enabled=true"
 else
-    echo "✅ Vault est déjà installé sur ce cluster."
+    echo "Vault est déjà installé sur ce cluster."
 fi
 
 # Attente que Vault soit prêt
-echo "⏳ Attente du démarrage de Vault..."
+echo "Attente du démarrage de Vault..."
 kubectl wait --for=condition=ready pod/vault-0 -n vault --timeout=120s
 
 # Configuration de Vault
-echo -e "\n⚙️ 3. Configuration de Vault (Auth Kubernetes + Secrets)..."
+echo -e "\n4. Configuration de Vault (Auth Kubernetes + Secrets)..."
 kubectl exec -n vault vault-0 -- sh -c '
 # Activer l authentification K8s (silencieux si déjà activé)
 vault auth enable kubernetes 2>/dev/null || true
@@ -128,10 +170,10 @@ vault kv put secret/miage-bank/database \
     mongo_password=admin \
     mongo_db=bank_db >/dev/null 2>&1
 ' 
-echo "✅ Secrets Vault configurés."
+echo "Secrets Vault configurés."
 
 # 4. Installation d'External Secrets Operator
-echo -e "\n🔑 4. Installation d'External Secrets Operator..."
+echo -e "\n5. Installation d'External Secrets Operator..."
 helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null
 helm repo update >/dev/null 2>&1
 
@@ -141,11 +183,11 @@ if ! helm status external-secrets -n external-secrets >/dev/null 2>&1; then
         --create-namespace \
         --set installCRDs=true
 else
-    echo "✅ External Secrets Operator est déjà installé."
+    echo "External Secrets Operator est déjà installé."
 fi
 
 # 5. Installation d'ArgoCD
-echo -e "\n🐙 5. Installation d'ArgoCD..."
+echo -e "\n6. Installation d'ArgoCD..."
 if ! kubectl get namespace argocd >/dev/null 2>&1; then
     kubectl create namespace argocd
 fi
@@ -153,24 +195,24 @@ fi
 if ! kubectl get deployment argocd-server -n argocd >/dev/null 2>&1; then
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 else
-    echo "✅ ArgoCD est déjà installé sur le cluster."
+    echo "ArgoCD est déjà installé sur le cluster."
 fi
 
-echo "⏳ Attente du démarrage d'ArgoCD (cela peut prendre 1 à 2 minutes)..."
+echo "Attente du démarrage d'ArgoCD (cela peut prendre 1 à 2 minutes)..."
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
 
 # 6. Déploiement de l'application via ArgoCD
-echo -e "\n🚀 6. Déploiement de l'application MIAGE Bank via ArgoCD..."
+echo -e "\n7. Déploiement de l'application MIAGE Bank via ArgoCD..."
 kubectl apply -f argocd/application.yaml
 
 echo "======================================================="
-echo "✅ TERMINÉ ! L'environnement est en cours de déploiement par ArgoCD !"
+echo "TERMINÉ : L'environnement est en cours de déploiement par ArgoCD."
 echo "======================================================="
 echo ""
-echo "👉 Consultez le fichier MANUEL_UTILISATION.md pour la suite :"
+echo "Consultez le fichier MANUEL_UTILISATION.md pour la suite :"
 echo "1. Lancez 'minikube tunnel' dans un autre terminal."
 echo "2. Ajoutez '127.0.0.1 miage-bank.local' à votre fichier hosts (ex: sudo nano /etc/hosts)."
 echo "3. Accédez à http://miage-bank.local"
 echo ""
-echo "💡 Pour surveiller l'état des pods de l'application en temps réel :"
+echo "Pour surveiller l'état des pods de l'application en temps réel :"
 echo "kubectl get pods -n miage-bank -w"
