@@ -225,6 +225,8 @@ miage-bank-app-miage-bank-front-cc4cbbd47-dqnmg           0/1     Terminating   
 
 Ce test permet de certifier que le dépôt Git conserve bien son rôle de Single Source of Truth, neutralisant de fait toute modification manuelle non suivie.
 
+![Auto-remédiation d'ArgoCD suite à une dérive des réplicas](assets/images/test_derive.png)
+
 ## 6. Résolution des anomalies de démarrage (Troubleshooting)
 
 Lors du passage de Docker Compose à Kubernetes, j'ai rencontré quelques crashs (`CrashLoopBackOff`) au démarrage des pods. J'ai donc apporté quelques correctifs dans le Helm Chart pour stabiliser le cluster :
