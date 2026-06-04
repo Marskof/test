@@ -91,7 +91,7 @@ WORKDIR /app
 COPY miage-bank-back/ /app/
 RUN mvn clean package -DskipTests
 EOF
-docker build -t miage-bank-builder -f Dockerfile.builder . >/dev/null
+docker build -t miage-bank-builder -f Dockerfile.builder . || { echo >&2 "Erreur: La compilation Java a échoué."; exit 1; }
 
 echo "Construction des images des micro-services..."
 cat <<EOF > Dockerfile.service
@@ -109,14 +109,14 @@ SERVICES=("Banque-Annuaire" "Banque-ConfigServer" "Banque-ClientService" "Banque
 for SERVICE in "${SERVICES[@]}"; do
     TAG=$(echo "$SERVICE" | tr '[:upper:]' '[:lower:]')
     echo "  -> Construction de $TAG:1.0.0"
-    docker build --build-arg SERVICE_NAME=$SERVICE -t "$TAG:1.0.0" -f Dockerfile.service . >/dev/null
+    docker build --build-arg SERVICE_NAME=$SERVICE -t "$TAG:1.0.0" -f Dockerfile.service . || { echo >&2 "Erreur: La construction de $TAG a échoué."; exit 1; }
     echo "  -> Chargement de l'image $TAG:1.0.0 dans Minikube..."
     minikube image load "$TAG:1.0.0"
 done
 
 echo "Construction du Frontend..."
 cd miage-bank-front
-docker build -t miage-bank-front:1.0.0 -f Containerfile . >/dev/null
+docker build -t miage-bank-front:1.0.0 -f Containerfile . || { echo >&2 "Erreur: La construction du frontend a échoué."; exit 1; }
 cd ..
 echo "Chargement du Frontend dans Minikube..."
 minikube image load miage-bank-front:1.0.0
