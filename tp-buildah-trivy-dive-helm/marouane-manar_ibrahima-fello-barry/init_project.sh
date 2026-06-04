@@ -96,12 +96,23 @@ install_if_missing "buildah"
 # 2. Démarrage de Minikube
 echo -e "\n1. Vérification / Démarrage de Minikube..."
 if ! minikube status >/dev/null 2>&1; then
-    echo "Minikube n'est pas lancé. Démarrage de Minikube avec l'addon Ingress..."
-    minikube start --addons=ingress
+    echo "Minikube n'est pas lancé. Démarrage de Minikube..."
+    minikube start
 else
     echo "Minikube est déjà en cours d'exécution."
-    # S'assurer que l'ingress est activé au cas où
-    minikube addons enable ingress >/dev/null 2>&1
+fi
+
+# On s'assure que l'addon nginx par défaut est désactivé
+minikube addons disable ingress >/dev/null 2>&1 || true
+
+# Installation de Traefik comme Ingress Controller
+echo "Installation de Traefik Ingress Controller..."
+helm repo add traefik https://traefik.github.io/charts 2>/dev/null
+helm repo update >/dev/null 2>&1
+if ! helm status traefik -n kube-system >/dev/null 2>&1; then
+    helm upgrade --install traefik traefik/traefik -n kube-system
+else
+    echo "Traefik est déjà installé sur ce cluster."
 fi
 
 # On s'assure que kubectl pointe bien sur minikube
