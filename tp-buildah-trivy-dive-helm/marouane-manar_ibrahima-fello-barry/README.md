@@ -15,7 +15,7 @@ L'analyse comparative détaillée entre l'architecture classique de Docker et l'
 
 ## 2. Build de MIAGE-Bank avec Buildah
 
-L'objectif de cette partie est de faire un build de l'ensemble des services (6 services back et 1 front) de l'application MIAGE-Bank avec Buildah (build OCI)
+L'objectif de cette partie est de faire un build de l'ensemble des services (6 services back et 1 front) de l'application MIAGE-Bank avec Buildah (build OCI).
 
 L'application source `MIAGE-Bank` étant architecturée en micro-services (6 services dans le dossier `miage-bank-back`), j'ai fait le choix de conteneuriser l'ensemble de l'application. Au lieu d'avoir 6 fois le même fichier, j'ai préféré utiliser un seul `ContainerFile` partagé. Cela me permet d'avoir une configuration homogène pour tous les services. Dans le projet Miage Bank, cette approche est suffisante telle quelle, mais on aurait pu avoir plusieurs `ContainerFile` si les services avaient eu des besoins différents.
 
@@ -65,7 +65,7 @@ L'image de base (`eclipse-temurin:17-jre-alpine`) s'avère robuste (quelques fai
 
 ### Plan de remédiation global
 Ces vulnérabilités découlent toutes d'une seule et même racine : **L'utilisation d'une version très obsolète de Spring Boot (la 2.6.4)** dans le fichier `pom.xml` parent du projet fourni pour le TP.
-1. **Action requise** : Il faudrait le projet vers une version moderne et sécurisée comme **Spring Boot 3.3.x ou 3.4.x**. Cela mettra instantanément à jour toutes les dépendances (dont `tomcat-embed-core`, `spring-web`, `snakeyaml`, etc.) vers des versions patchées.
+1. **Action requise** : Il faudrait migrer le projet vers une version moderne et sécurisée comme **Spring Boot 3.3.x ou 3.4.x**. Cela mettra instantanément à jour toutes les dépendances (dont `tomcat-embed-core`, `spring-web`, `snakeyaml`, etc.) vers des versions patchées.
 2. **Pour le système OS (Alpine)** : Mettre à jour l'image de base (`temurin:17-jre-alpine`) régulièrement pour embarquer les derniers correctifs de paquets via l'utilisation rigoureuse des derniers *digests* OCI.
 
 > **Note** : un digest OCI est l'identifiant immuable d'une image, calculé à partir de son contenu. Il permet de garantir qu'on télécharge exactement la même version de l'image, sans dépendre d'un simple tag qui peut évoluer.
@@ -130,9 +130,9 @@ Cette pipeline se déclenche sur `push` et `pull_request` vers la branche `main`
 7. **Audit de gaspillage (Dive)** : Exécution de l'audit Dive respectant les seuils fixés (fichier `.dive-ci`) sur l'ensemble des archives.
 8. **Archivage des rapports** : Upload de tous les artefacts (`build-reports`) en fin de pipeline.
 
-> **Note** : les alertes peuvent ne pas apparaître dans l'onglet *Security* car je n'ai pas GitHub Advanced Security sur ce dépôt privé, même avec l'offre GitHub for Student. Dans tout les cas, les rapports SARIF/JSON restent disponibles dans les artefacts de la pipeline. Si le repo est en public, on a accès à l'onglet security. 
+> **Note** : Le dépôt étant **public**, les alertes remontées par le scan Trivy (format SARIF) sont nativement intégrées et visibles dans l'onglet **Security** de GitHub. Cela permet d'avoir un tableau de bord DevSecOps centralisé de l'état de santé de l'application sans avoir à fouiller dans les logs de la pipeline.
 
-![image montrant l'onglet Security and quality de github](assets/images/github-security-tab.png)
+![Tableau de bord GitHub Security](assets/images/github-security-tab_repo_public.png)
 
 ---
 
@@ -160,7 +160,7 @@ Pour sécuriser les flux réseau, j'ai mis en place une `NetworkPolicy`. Le name
 > **Note** : une `NetworkPolicy` est un objet Kubernetes qui définit les règles de communication réseau entre les pods. Elle fonctionne selon le principe du *deny-all* par défaut (tous les flux sont interdits, sauf ceux explicitement autorisés).
 
 - **Trafic interne** : Le trafic entre les pods de `miage-bank` est explicitement autorisé, ce qui est nécessaire à la communication inter-services.
-- **Point d'entrée unique** : Seul le trafic entrant provenant de l'Ingress Controller Nginx (situé dans le namespace `kube-system`) est accepté depuis l'extérieur. Cela constitue notre unique point d'entrée vers l'application.
+- **Point d'entrée unique** : Seul le trafic entrant provenant de l'Ingress Controller Nginx (situé dans le namespace `ingress-nginx`) est accepté depuis l'extérieur. Cela constitue notre unique point d'entrée vers l'application.
 
 ### RBAC (Role-Based Access Control)
 
@@ -194,7 +194,13 @@ La politique de synchronisation a été définie sur `automated` avec deux param
 
 Le projet est bien déployé et de nouveau accessible localement via l'Ingress Nginx sur l'adresse `miage-bank.local`.
 
-> **Note** : sous Windows avec WSL, l'accès via l'Ingress peut être problématique. La commande `minikube tunnel` ne fonctionne pas forcément de façon fiable.
+> **Note** : sous Windows avec WSL, l'accès via l'Ingress et `minikube tunnel` peut être instable (conflit d'invite de commande sudo). Dans ce cas, une redirection de port (`kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80`) garantit un accès fiable.
+
+### Interface ArgoCD
+Une fois le déploiement terminé, l'interface graphique d'ArgoCD reflète l'état de santé du cluster. Tous les micro-services (Déploiements, Services, Ingress, Secrets) sont synchronisés avec succès et affichent le statut `Healthy` et `Synced`.
+
+![Vue globale du tableau de bord ArgoCD](assets/images/argocd_dashboard.png)
+![Vue détaillée de l'application miage-bank dans ArgoCD](assets/images/argocd_miage-bank-app.png)
 
 
 
