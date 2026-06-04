@@ -41,7 +41,7 @@ kubectl get pods -n miage-bank -w
 
 ## 4. Accès à l'Application
 
-L'architecture intègre un Ingress Traefik répondant au nom de domaine **`miage-bank.local`**. 
+L'architecture intègre un Ingress Nginx répondant au nom de domaine **`miage-bank.local`**. 
 
 1. **Activez le tunnel Minikube** (gardez ce terminal ouvert en arrière-plan) :
    ```bash

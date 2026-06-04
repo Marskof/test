@@ -102,18 +102,9 @@ else
     echo "Minikube est déjà en cours d'exécution."
 fi
 
-# On s'assure que l'addon nginx par défaut est désactivé
-minikube addons disable ingress >/dev/null 2>&1 || true
-
-# Installation de Traefik comme Ingress Controller
-echo "Installation de Traefik Ingress Controller..."
-helm repo add traefik https://traefik.github.io/charts 2>/dev/null
-helm repo update >/dev/null 2>&1
-if ! helm status traefik -n kube-system >/dev/null 2>&1; then
-    helm upgrade --install traefik traefik/traefik -n kube-system
-else
-    echo "Traefik est déjà installé sur ce cluster."
-fi
+# S'assurer que l'ingress Nginx est activé
+echo "Activation de l'Ingress Controller Nginx..."
+minikube addons enable ingress >/dev/null 2>&1
 
 # On s'assure que kubectl pointe bien sur minikube
 kubectl config use-context minikube >/dev/null 2>&1

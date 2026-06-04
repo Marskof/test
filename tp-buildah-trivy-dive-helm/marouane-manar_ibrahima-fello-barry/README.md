@@ -160,7 +160,7 @@ Pour sécuriser les flux réseau, j'ai mis en place une `NetworkPolicy`. Le name
 > **Note** : une `NetworkPolicy` est un objet Kubernetes qui définit les règles de communication réseau entre les pods. Elle fonctionne selon le principe du *deny-all* par défaut (tous les flux sont interdits, sauf ceux explicitement autorisés).
 
 - **Trafic interne** : Le trafic entre les pods de `miage-bank` est explicitement autorisé, ce qui est nécessaire à la communication inter-services.
-- **Point d'entrée unique** : Seul le trafic entrant provenant de l'Ingress Controller Traefik (situé dans le namespace `kube-system`) est accepté depuis l'extérieur. Cela constitue notre unique point d'entrée vers l'application.
+- **Point d'entrée unique** : Seul le trafic entrant provenant de l'Ingress Controller Nginx (situé dans le namespace `kube-system`) est accepté depuis l'extérieur. Cela constitue notre unique point d'entrée vers l'application.
 
 ### RBAC (Role-Based Access Control)
 
@@ -192,7 +192,7 @@ La politique de synchronisation a été définie sur `automated` avec deux param
 - **Prune** : Supprime les objets Kubernetes locaux qui ne sont plus déclarés dans les fichiers du dépôt Git.
 - **SelfHeal** : Corrige automatiquement tout écart entre l'état du cluster et le code présent sur GitHub.
 
-Le projet est bien déployé et de nouveau accessible localement via l'Ingress Traefik sur l'adresse `miage-bank.local`.
+Le projet est bien déployé et de nouveau accessible localement via l'Ingress Nginx sur l'adresse `miage-bank.local`.
 
 > **Note** : sous Windows avec WSL, l'accès via l'Ingress peut être problématique. La commande `minikube tunnel` ne fonctionne pas forcément de façon fiable.
 

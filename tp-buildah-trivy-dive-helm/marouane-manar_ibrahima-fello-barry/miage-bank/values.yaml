@@ -5,7 +5,7 @@ global:
 
 ingress:
   enabled: true
-  className: "traefik"
+  className: "nginx"
   hostname: "miage-bank.local"
 
 # 6 backends + 1 front + 2 BDDs (mysql et mongo)
