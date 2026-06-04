@@ -149,6 +149,11 @@ minikube addons enable ingress >/dev/null 2>&1
 # On s'assure que kubectl pointe bien sur minikube
 kubectl config use-context minikube >/dev/null 2>&1
 
+# Nettoyage optionnel pour garantir un environnement vierge
+echo "Nettoyage de l'ancien environnement (s'il existe)..."
+kubectl delete -f argocd/application.yaml --ignore-not-found=true >/dev/null 2>&1
+kubectl delete namespace miage-bank --ignore-not-found=true >/dev/null 2>&1
+
 # 2.5 Compilation et création des images OCI via Buildah (build_all.sh)
 echo -e "\n2. Construction des images via Buildah et chargement dans Minikube..."
 
