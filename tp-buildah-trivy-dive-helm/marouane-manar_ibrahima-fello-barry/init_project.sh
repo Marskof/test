@@ -19,6 +19,12 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
+# Charger le JDK local s'il a déjà été téléchargé lors d'une exécution précédente
+if [ -d "$HOME/.miage-bank/jdk17" ]; then
+    export JAVA_HOME="$HOME/.miage-bank/jdk17"
+    export PATH="$JAVA_HOME/bin:$PATH"
+fi
+
 # Vérification de Java 17 (nécessaire pour la compilation Maven de Spring Boot 2.6.4)
 check_java() {
     if ! command -v java >/dev/null 2>&1; then return 1; fi
@@ -36,16 +42,59 @@ if ! check_java; then
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         if command -v apt-get >/dev/null 2>&1; then
             sudo apt-get update 2>/dev/null || true
-            sudo apt-get install -y openjdk-17-jdk
+            sudo apt-get install -y openjdk-17-jdk 2>/dev/null || echo "Le paquet openjdk-17-jdk n'est pas disponible sur ce système."
             sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java 2>/dev/null || true
             sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac 2>/dev/null || true
         elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y java-17-openjdk-devel
+            sudo dnf install -y java-17-openjdk-devel 2>/dev/null || true
         elif command -v yum >/dev/null 2>&1; then
-            sudo yum install -y java-17-openjdk-devel
+            sudo yum install -y java-17-openjdk-devel 2>/dev/null || true
         fi
     elif [[ "$OSTYPE" == "darwin"* ]]; then
-        brew install openjdk@17
+        if command -v brew >/dev/null 2>&1; then
+            brew install openjdk@17
+            # Lien symbolique nécessaire pour macOS pour enregistrer le JDK
+            sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk 2>/dev/null || true
+        fi
+    fi
+    
+    # Si Java 17 n'est toujours pas disponible après tentative, méthode de secours universelle (téléchargement local)
+    if ! check_java; then
+        echo "Les gestionnaires de paquets système n'ont pas pu installer Java 17."
+        echo "Téléchargement et configuration automatique d'une version locale de Java 17 (Eclipse Temurin)..."
+        
+        OS_TYPE="linux"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            OS_TYPE="mac"
+        fi
+        
+        ARCH_TYPE="x64"
+        ARCH_RAW=$(uname -m)
+        if [[ "$ARCH_RAW" == "aarch64" || "$ARCH_RAW" == "arm64" ]]; then
+            ARCH_TYPE="aarch64"
+        fi
+        
+        JDK_DIR="$HOME/.miage-bank/jdk17"
+        mkdir -p "$JDK_DIR"
+        
+        DOWNLOAD_URL="https://api.adoptium.net/v3/binary/latest/17/ga/${OS_TYPE}/${ARCH_TYPE}/jdk/hotspot/normal/eclipse?project=jdk"
+        echo "Téléchargement du JDK depuis Adoptium pour ${OS_TYPE} (${ARCH_TYPE})..."
+        
+        if command -v curl >/dev/null 2>&1; then
+            curl -L "$DOWNLOAD_URL" -o "/tmp/jdk17.tar.gz"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -O "/tmp/jdk17.tar.gz" "$DOWNLOAD_URL"
+        else
+            echo >&2 "ERREUR : curl ou wget est nécessaire pour télécharger Java 17."
+            exit 1
+        fi
+        
+        echo "Extraction de Java 17..."
+        tar -xzf "/tmp/jdk17.tar.gz" -C "$JDK_DIR" --strip-components=1
+        rm -f "/tmp/jdk17.tar.gz"
+        
+        export JAVA_HOME="$JDK_DIR"
+        export PATH="$JAVA_HOME/bin:$PATH"
     fi
     
     if ! check_java; then
@@ -53,7 +102,7 @@ if ! check_java; then
         echo >&2 "Veuillez installer Java 17 manuellement car il est strictement requis."
         exit 1
     else
-        echo "Java 17 a été installé et configuré avec succès."
+        echo "Java 17 a été configuré avec succès."
     fi
 fi
 
@@ -181,6 +230,11 @@ helm repo add hashicorp https://helm.releases.hashicorp.com 2>/dev/null
 helm repo update >/dev/null 2>&1
 
 if ! helm status vault -n vault >/dev/null 2>&1; then
+    # Supprimer d'éventuels restes conflictuels d'une précédente installation de Vault
+    helm uninstall vault -n default >/dev/null 2>&1 || true
+    kubectl delete clusterrole vault-agent-injector-clusterrole --ignore-not-found=true >/dev/null 2>&1
+    kubectl delete clusterrolebinding vault-agent-injector-binding --ignore-not-found=true >/dev/null 2>&1
+    
     helm upgrade --install vault hashicorp/vault -n vault --create-namespace --set "server.dev.enabled=true"
 else
     echo "Vault est déjà installé sur ce cluster."
