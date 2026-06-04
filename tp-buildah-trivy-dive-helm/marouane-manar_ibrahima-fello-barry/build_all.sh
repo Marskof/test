@@ -7,6 +7,16 @@ VERSION="1.0.0"
 # 1. Compilation des sources Java avec Maven
 # ==========================================
 
+# Charger le JDK local s'il a été téléchargé par init_project.sh
+if [ -d "$HOME/.miage-bank/jdk17" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        export JAVA_HOME="$HOME/.miage-bank/jdk17/Contents/Home"
+    else
+        export JAVA_HOME="$HOME/.miage-bank/jdk17"
+    fi
+    export PATH="$JAVA_HOME/bin:$PATH"
+fi
+
 # Vérification stricte de Java 17 (nécessaire pour Spring Boot 2.6.4)
 check_java() {
     if ! command -v java >/dev/null 2>&1; then return 1; fi

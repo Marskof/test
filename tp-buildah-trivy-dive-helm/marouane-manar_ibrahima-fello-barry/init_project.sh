@@ -21,7 +21,11 @@ fi
 
 # Charger le JDK local s'il a déjà été téléchargé lors d'une exécution précédente
 if [ -d "$HOME/.miage-bank/jdk17" ]; then
-    export JAVA_HOME="$HOME/.miage-bank/jdk17"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        export JAVA_HOME="$HOME/.miage-bank/jdk17/Contents/Home"
+    else
+        export JAVA_HOME="$HOME/.miage-bank/jdk17"
+    fi
     export PATH="$JAVA_HOME/bin:$PATH"
 fi
 
@@ -54,7 +58,7 @@ if ! check_java; then
         if command -v brew >/dev/null 2>&1; then
             brew install openjdk@17
             # Lien symbolique nécessaire pour macOS pour enregistrer le JDK
-            sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk 2>/dev/null || true
+            sudo ln -sfn $(brew --prefix openjdk@17)/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk 2>/dev/null || true
         fi
     fi
     
@@ -93,7 +97,11 @@ if ! check_java; then
         tar -xzf "/tmp/jdk17.tar.gz" -C "$JDK_DIR" --strip-components=1
         rm -f "/tmp/jdk17.tar.gz"
         
-        export JAVA_HOME="$JDK_DIR"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            export JAVA_HOME="$JDK_DIR/Contents/Home"
+        else
+            export JAVA_HOME="$JDK_DIR"
+        fi
         export PATH="$JAVA_HOME/bin:$PATH"
     fi
     
