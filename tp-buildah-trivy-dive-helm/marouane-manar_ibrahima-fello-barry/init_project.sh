@@ -141,6 +141,7 @@ fi
 
 # Attente que Vault soit prêt
 echo "Attente du démarrage de Vault..."
+sleep 5 # Attendre que le pod soit créé par le StatefulSet
 kubectl wait --for=condition=ready pod/vault-0 -n vault --timeout=120s
 sleep 5 # Laisser le temps à l'API Vault de démarrer en interne
 
@@ -195,7 +196,7 @@ if ! kubectl get namespace argocd >/dev/null 2>&1; then
 fi
 
 if ! kubectl get deployment argocd-server -n argocd >/dev/null 2>&1; then
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side=true
 else
     echo "ArgoCD est déjà installé sur le cluster."
 fi
@@ -203,7 +204,7 @@ fi
 echo "Attente du démarrage d'ArgoCD (cela peut prendre 1 à 2 minutes)..."
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
 kubectl wait --for=condition=available deployment/argocd-repo-server -n argocd --timeout=300s
-kubectl wait --for=condition=available deployment/argocd-application-controller -n argocd --timeout=300s
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-application-controller -n argocd --timeout=300s
 
 # 6. Déploiement de l'application via ArgoCD
 echo -e "\n7. Déploiement de l'application MIAGE Bank via ArgoCD..."
