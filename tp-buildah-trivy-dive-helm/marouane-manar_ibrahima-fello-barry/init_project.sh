@@ -114,16 +114,18 @@ if ! check_java; then
     fi
 fi
 
-# Donner à Vault la permission de vérifier les tokens Kubernetes
-kubectl create clusterrolebinding vault-server-binding \
-    --clusterrole=system:auth-delegator \
-    --serviceaccount=vault:vault >/dev/null 2>&1
+
 
 # Fonction pour vérifier et installer les outils CLI
 install_if_missing() {
     local cmd=$1
     if ! command -v $cmd >/dev/null 2>&1; then
         echo "L'outil '$cmd' n'est pas installé. Tentative d'installation automatique..."
+        
+        # S'assurer que le répertoire de destination existe (pour Linux / macOS)
+        if [[ "$OSTYPE" == "linux-gnu"* ]] || [[ "$OSTYPE" == "darwin"* ]]; then
+            sudo mkdir -p /usr/local/bin 2>/dev/null || true
+        fi
         
         if [ "$cmd" = "kubectl" ]; then
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -227,6 +229,8 @@ kubectl config use-context minikube >/dev/null 2>&1
 echo "Nettoyage de l'ancien environnement (s'il existe)..."
 kubectl delete -f argocd/application.yaml --ignore-not-found=true >/dev/null 2>&1
 kubectl delete namespace miage-bank --ignore-not-found=true >/dev/null 2>&1
+kubectl delete namespace vault --ignore-not-found=true >/dev/null 2>&1
+kubectl delete clusterrolebinding vault-server-binding --ignore-not-found=true >/dev/null 2>&1
 
 # 2.5 Compilation et création des images OCI via Buildah (build_all.sh)
 echo -e "\n2. Construction des images via Buildah et chargement dans Minikube..."
