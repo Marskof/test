@@ -155,9 +155,9 @@ path "secret/data/miage-bank/database" {
 }
 EOF
 
-# Créer le rôle lié au ServiceAccount miage-bank-sa
+# Créer le rôle lié au ServiceAccount miage-bank-app-sa
 vault write auth/kubernetes/role/miage-bank-role \
-    bound_service_account_names=miage-bank-sa \
+    bound_service_account_names=miage-bank-app-sa \
     bound_service_account_namespaces=miage-bank \
     policies=miage-policy \
     ttl=1h >/dev/null 2>&1
@@ -200,6 +200,8 @@ fi
 
 echo "Attente du démarrage d'ArgoCD (cela peut prendre 1 à 2 minutes)..."
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
+kubectl wait --for=condition=available deployment/argocd-repo-server -n argocd --timeout=300s
+kubectl wait --for=condition=available deployment/argocd-application-controller -n argocd --timeout=300s
 
 # 6. Déploiement de l'application via ArgoCD
 echo -e "\n7. Déploiement de l'application MIAGE Bank via ArgoCD..."
