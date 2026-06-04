@@ -55,7 +55,7 @@ fi
 # 2. Construction du Frontend
 # ==========================================
 echo "Etape 2: Construction du Front-end (miage-bank-front)..."
-$BUILD_CMD -t miage-bank-front:${VERSION} ./miage-bank-front
+$BUILD_CMD -f ./miage-bank-front/Containerfile -t miage-bank-front:${VERSION} ./miage-bank-front
 
 # ==========================================
 # 3. Construction des micro-services (Containerfile)
