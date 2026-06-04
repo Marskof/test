@@ -82,9 +82,7 @@ fi
 kubectl config use-context minikube >/dev/null 2>&1
 
 # 2.5 Compilation et création des images OCI (sans dépendance locale)
-echo -e "\n2. Construction des images directement dans Minikube..."
-# On pointe le client Docker local vers le daemon Docker de Minikube
-eval $(minikube docker-env)
+echo -e "\n2. Construction des images locales et chargement dans Minikube..."
 
 echo "Compilation Java en cours via un conteneur éphémère (cela prend quelques minutes)..."
 cat <<EOF > Dockerfile.builder
@@ -112,12 +110,16 @@ for SERVICE in "${SERVICES[@]}"; do
     TAG=$(echo "$SERVICE" | tr '[:upper:]' '[:lower:]')
     echo "  -> Construction de $TAG:1.0.0"
     docker build --build-arg SERVICE_NAME=$SERVICE -t "$TAG:1.0.0" -f Dockerfile.service . >/dev/null
+    echo "  -> Chargement de l'image $TAG:1.0.0 dans Minikube..."
+    minikube image load "$TAG:1.0.0"
 done
 
 echo "Construction du Frontend..."
 cd miage-bank-front
 docker build -t miage-bank-front:1.0.0 -f Containerfile . >/dev/null
 cd ..
+echo "Chargement du Frontend dans Minikube..."
+minikube image load miage-bank-front:1.0.0
 
 # Nettoyage
 rm Dockerfile.builder Dockerfile.service
