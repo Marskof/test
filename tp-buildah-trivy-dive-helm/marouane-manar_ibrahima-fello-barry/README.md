@@ -235,3 +235,16 @@ Lors du passage de Docker Compose à Kubernetes, j'ai rencontré quelques crashs
 - **Profil Spring Boot** : Par défaut, le profil `default` était chargé, ce qui empêchait la récupération des URLs des bases de données. J'ai injecté `SPRING_PROFILES_ACTIVE: "docker"` via la `ConfigMap`.
 - **Ports Tomcat** : Sans précision, Tomcat démarrait sur le port `8080`, ce qui faisait échouer les sondes Kubernetes (configurées sur `10021`, etc.). J'ai donc ajouté une injection de variable `SERVER_PORT: "{{ $svc.port }}"` dans mon `deployment.yaml`.
 - **Réglage des sondes** : J'ai remarqué qu'une `readinessProbe` trop longue sur l'Annuaire bloquait le trafic réseau et faisait planter les autres conteneurs par effet domino (timeout). J'ai réduit la `readinessProbe` à 30 secondes, tout en conservant 120 secondes pour la `livenessProbe` afin de laisser le temps à Spring Boot de démarrer.
+
+## 7. Rendu visuel de l'application (Frontend)
+
+L'application MIAGE-Bank est bien déployée et s'adapte parfaitement aux différents environnements. Voici le rendu visuel de la page d'accueil (Front-End) sur les différents systèmes d'exploitation (Windows, Linux, macOS) :
+
+### Rendu sous Windows (WSL)
+![Rendu sous Windows (WSL)](assets/images/front_sur_windows.png)
+
+### Rendu sous Linux
+![Rendu sous Linux](assets/images/front_sur_linux.png)
+
+### Rendu sous macOS
+![Rendu sous macOS](assets/images/front_sur_mac.png)
