@@ -45,11 +45,30 @@ install_if_missing() {
                 sudo install minikube-darwin-amd64 /usr/local/bin/minikube
                 rm minikube-darwin-amd64
             fi
-        elif [ "$cmd" = "helm" ]; then
-            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-            chmod 700 get_helm.sh
-            ./get_helm.sh
-            rm get_helm.sh
+        elif [ "$cmd" = "mvn" ]; then
+            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                if command -v apt-get >/dev/null 2>&1; then
+                    sudo apt-get update && sudo apt-get install -y maven
+                elif command -v dnf >/dev/null 2>&1; then
+                    sudo dnf install -y maven
+                elif command -v yum >/dev/null 2>&1; then
+                    sudo yum install -y maven
+                fi
+            elif [[ "$OSTYPE" == "darwin"* ]]; then
+                brew install maven
+            fi
+        elif [ "$cmd" = "buildah" ]; then
+            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                if command -v apt-get >/dev/null 2>&1; then
+                    sudo apt-get update && sudo apt-get install -y buildah
+                elif command -v dnf >/dev/null 2>&1; then
+                    sudo dnf install -y buildah
+                elif command -v yum >/dev/null 2>&1; then
+                    sudo yum install -y buildah
+                fi
+            elif [[ "$OSTYPE" == "darwin"* ]]; then
+                brew install buildah
+            fi
         fi
         
         # Vérification post-installation
@@ -66,6 +85,8 @@ install_if_missing() {
 install_if_missing "kubectl"
 install_if_missing "minikube"
 install_if_missing "helm"
+install_if_missing "mvn"
+install_if_missing "buildah"
 
 # 2. Démarrage de Minikube
 echo -e "\n1. Vérification / Démarrage de Minikube..."
@@ -81,48 +102,25 @@ fi
 # On s'assure que kubectl pointe bien sur minikube
 kubectl config use-context minikube >/dev/null 2>&1
 
-# 2.5 Compilation et création des images OCI (sans dépendance locale)
-echo -e "\n2. Construction des images locales et chargement dans Minikube..."
+# 2.5 Compilation et création des images OCI via Buildah (build_all.sh)
+echo -e "\n2. Construction des images via Buildah et chargement dans Minikube..."
 
-echo "Compilation Java en cours via un conteneur éphémère (cela prend quelques minutes)..."
-cat <<EOF > Dockerfile.builder
-FROM maven:3.9-eclipse-temurin-17 AS builder
-WORKDIR /app
-COPY miage-bank-back/ /app/
-RUN mvn clean package -DskipTests
-EOF
-docker build -t miage-bank-builder -f Dockerfile.builder . || { echo >&2 "Erreur: La compilation Java a échoué."; exit 1; }
+echo "Exécution de build_all.sh..."
+# Corriger les retours à la ligne au cas où le script aurait été cloné sur Windows
+sed -i 's/\r$//' build_all.sh 2>/dev/null || true
+chmod +x build_all.sh
+./build_all.sh || { echo >&2 "Erreur: L'exécution de build_all.sh a échoué."; exit 1; }
 
-echo "Construction des images des micro-services..."
-cat <<EOF > Dockerfile.service
-FROM miage-bank-builder AS builder
-ARG SERVICE_NAME
-FROM eclipse-temurin:17-jre-alpine
-ARG SERVICE_NAME
-WORKDIR /app
-COPY --from=builder /app/\${SERVICE_NAME}/target/*.jar /app/app.jar
-EXPOSE 8080
-CMD ["java", "-jar", "/app/app.jar"]
-EOF
-
-SERVICES=("Banque-Annuaire" "Banque-ConfigServer" "Banque-ClientService" "Banque-CompteService" "Banque-CompositeService" "Banque-APIGateway")
-for SERVICE in "${SERVICES[@]}"; do
-    TAG=$(echo "$SERVICE" | tr '[:upper:]' '[:lower:]')
-    echo "  -> Construction de $TAG:1.0.0"
-    docker build --build-arg SERVICE_NAME=$SERVICE -t "$TAG:1.0.0" -f Dockerfile.service . || { echo >&2 "Erreur: La construction de $TAG a échoué."; exit 1; }
-    echo "  -> Chargement de l'image $TAG:1.0.0 dans Minikube..."
-    minikube image load "$TAG:1.0.0"
+echo "Chargement des images Buildah vers Minikube..."
+SERVICES=("banque-annuaire" "banque-configserver" "banque-clientservice" "banque-compteservice" "banque-compositeservice" "banque-apigateway" "miage-bank-front")
+for TAG in "${SERVICES[@]}"; do
+    echo "  -> Export et chargement de $TAG:1.0.0..."
+    # Export en archive tar depuis Buildah pour être 100% sûr du transfert
+    buildah push "$TAG:1.0.0" docker-archive:"$TAG.tar":"$TAG:1.0.0" >/dev/null 2>&1
+    minikube image load "$TAG.tar"
+    rm -f "$TAG.tar"
 done
 
-echo "Construction du Frontend..."
-cd miage-bank-front
-docker build -t miage-bank-front:1.0.0 -f Containerfile . || { echo >&2 "Erreur: La construction du frontend a échoué."; exit 1; }
-cd ..
-echo "Chargement du Frontend dans Minikube..."
-minikube image load miage-bank-front:1.0.0
-
-# Nettoyage
-rm Dockerfile.builder Dockerfile.service
 echo "Toutes les images sont prêtes dans Minikube."
 
 # 3. Installation de Vault
