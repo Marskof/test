@@ -3,6 +3,9 @@
 
 L'ensemble des livrables de ce TP se trouve dans ce répertoire.
 
+> [!IMPORTANT]
+> **Évaluation du projet** : Si vous souhaitez tester et déployer l'infrastructure de ce projet en local, veuillez vous référer au document dédié : [`MANUEL_UTILISATION.md`](./MANUEL_UTILISATION.md).
+
 ---
 
 # Partie A — Chaîne de build OCI avec Buildah, Trivy et Dive

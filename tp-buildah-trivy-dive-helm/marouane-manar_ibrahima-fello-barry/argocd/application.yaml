@@ -7,8 +7,8 @@ metadata:
 spec:
   project: default
   source:
-    #repoURL: 'https://github.com/Marskof/tp-devops-buildah-trivy-dive-helm-k8s.git' 
-    repoURL: 'https://github.com/Marskof/test.git' 
+    repoURL: 'https://github.com/Marskof/tp-devops-buildah-trivy-dive-helm-k8s.git' 
+    #repoURL: 'https://github.com/Marskof/test.git' 
     targetRevision: main
     path: tp-buildah-trivy-dive-helm/marouane-manar_ibrahima-fello-barry/miage-bank # chemin vers le chart
   destination:
