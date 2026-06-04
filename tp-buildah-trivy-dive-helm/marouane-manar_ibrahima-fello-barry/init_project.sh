@@ -282,7 +282,7 @@ fi
 # Attente que Vault soit prêt
 echo "Attente du démarrage de Vault..."
 sleep 5 # Attendre que le pod soit créé par le StatefulSet
-kubectl wait --for=condition=ready pod/vault-0 -n vault --timeout=120s
+kubectl wait --for=condition=ready pod/vault-0 -n vault --timeout=600s
 sleep 5 # Laisser le temps à l'API Vault de démarrer en interne
 
 # Configuration de Vault
