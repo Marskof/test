@@ -23,6 +23,11 @@ chmod +x init_project.sh
 ./init_project.sh
 ```
 
+> **Note pour les utilisateurs Windows (WSL)** : Si le script refuse de se lancer ou affiche des erreurs de syntaxe étranges, cela est probablement dû à un problème de formatage des fins de ligne (CRLF vs LF) causé par Git sous Windows. Pour corriger cela, exécutez simplement cette commande avant de lancer le script :
+> ```bash
+> sed -i 's/\r$//' init_project.sh
+> ```
+
 **Ce que fait ce script :**
 1. 📦 **Démarrage de Minikube** avec l'addon `ingress` activé.
 2. 🔐 **Déploiement de HashiCorp Vault** (en mode dev). Le script s'occupe de configurer l'authentification Kubernetes et d'injecter tous les secrets nécessaires (identifiants des bases de données).
