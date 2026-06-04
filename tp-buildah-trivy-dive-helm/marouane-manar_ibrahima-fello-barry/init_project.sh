@@ -145,6 +145,17 @@ install_if_missing() {
                 sudo install minikube-darwin-amd64 /usr/local/bin/minikube
                 rm minikube-darwin-amd64
             fi
+        elif [ "$cmd" = "helm" ]; then
+            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+                chmod 700 get_helm.sh
+                ./get_helm.sh >/dev/null 2>&1
+                rm get_helm.sh
+            elif [[ "$OSTYPE" == "darwin"* ]]; then
+                if command -v brew >/dev/null 2>&1; then
+                    brew install helm
+                fi
+            fi
         elif [ "$cmd" = "mvn" ]; then
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
                 if command -v apt-get >/dev/null 2>&1; then
