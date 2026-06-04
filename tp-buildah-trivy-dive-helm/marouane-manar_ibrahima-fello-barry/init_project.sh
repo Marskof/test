@@ -19,6 +19,11 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
+# Donner à Vault la permission de vérifier les tokens Kubernetes
+kubectl create clusterrolebinding vault-server-binding \
+    --clusterrole=system:auth-delegator \
+    --serviceaccount=vault:vault >/dev/null 2>&1
+
 # Fonction pour vérifier et installer les outils CLI
 install_if_missing() {
     local cmd=$1
@@ -137,30 +142,27 @@ fi
 # Attente que Vault soit prêt
 echo "Attente du démarrage de Vault..."
 kubectl wait --for=condition=ready pod/vault-0 -n vault --timeout=120s
+sleep 5 # Laisser le temps à l'API Vault de démarrer en interne
 
 # Configuration de Vault
 echo -e "\n4. Configuration de Vault (Auth Kubernetes + Secrets)..."
 kubectl exec -n vault vault-0 -- sh -c '
 # Activer l authentification K8s (silencieux si déjà activé)
-vault auth enable kubernetes 2>/dev/null || true
+vault auth enable kubernetes || echo "Auth déjà activé"
 
 # Configurer K8s auth
 vault write auth/kubernetes/config \
-    kubernetes_host="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT" >/dev/null 2>&1
+    kubernetes_host="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT"
 
 # Créer la politique d acces aux secrets
-vault policy write miage-policy - <<EOF
-path "secret/data/miage-bank/database" {
-  capabilities = ["read"]
-}
-EOF
+echo "path \"secret/data/miage-bank/database\" { capabilities = [\"read\"] }" | vault policy write miage-policy -
 
 # Créer le rôle lié au ServiceAccount miage-bank-app-sa
 vault write auth/kubernetes/role/miage-bank-role \
     bound_service_account_names=miage-bank-app-sa \
     bound_service_account_namespaces=miage-bank \
     policies=miage-policy \
-    ttl=1h >/dev/null 2>&1
+    ttl=1h
 
 # Injecter les secrets dans le KV
 vault kv put secret/miage-bank/database \
