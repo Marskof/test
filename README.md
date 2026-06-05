@@ -2,7 +2,7 @@
 
 Bienvenue sur le dépôt de notre projet DevOps.
 
-## ⚠️ Structure du projet
+## Structure du projet
 
 Afin de conserver l'historique et les fichiers de base fournis, ce projet a été construit à partir d'un fork du dépôt original. C'est la raison pour laquelle l'architecture des dossiers est imbriquée et que notre travail se trouve dans un sous-dossier spécifique.
 
